@@ -19,17 +19,24 @@ logger = logging.getLogger(__name__)
 
 config.validate_config()
 bot = telebot.TeleBot(config.TELEGRAM_BOT_TOKEN)
+user_histories = {}
 
 
-@bot.message_handler(commands=["start", "help"])
+@bot.message_handler(commands=["start"])
 def handle_start(message: types.Message) -> None:
-    """Приветствие и краткая справка."""
-    bot.reply_to(
-        message,
-        "Привет! Я AI-ассистент.\n"
-        "Напиши любой вопрос — отвечу с помощью OpenAI.\n"
-        "Команды: /start, /help",
+    user_id = message.from_user.id
+
+    # сбрасываем историю при новом старте
+    user_histories[user_id] = []
+
+    welcome_text = (
+        "Привет! Я консультант магазина мониторов TechStore.\n\n"
+        "Помогу подобрать монитор под твои задачи.\n"
+        "Для начала скажи, пожалуйста:\n"
+        "👉 Для чего тебе нужен монитор? (игры / работа / дизайн / универсальный)"
     )
+
+    bot.reply_to(message, welcome_text)
 
 
 @bot.message_handler(content_types=["text"])
@@ -43,7 +50,26 @@ def handle_text(message: types.Message) -> None:
     bot.send_chat_action(message.chat.id, "typing")
 
     try:
-        reply = ai_logic.get_ai_reply(user_text)
+        user_id = message.from_user.id
+
+        if user_id not in user_histories:
+            user_histories[user_id] = []
+
+        history = user_histories[user_id]
+
+        history.append({"role": "user", "content": user_text})
+
+        reply = ai_logic.get_ai_reply(history)
+
+        if "[COMPLETE]" in reply:
+            logger.info("Заказ завершён, можно сохранять структуру")
+            
+
+        history.append({"role": "assistant", "content": reply})
+
+        if len(history) > 20:
+            history[:] = history[-20:]    
+    
     except Exception:
         logger.exception("Ошибка OpenAI API")
         bot.reply_to(message, "Не удалось получить ответ. Попробуйте позже.")
