@@ -195,15 +195,10 @@ def extract_order(dialog_history: list) -> dict:
 
     content = response.choices[0].message.content or "{}"
 
-    print("\n========== RAW JSON ==========")
-
-    print(content)
-    print("========== END RAW JSON ==========\n")
 
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
-        print("JSON DECODE ERROR")
         return _normalize_order({})
 
     return _normalize_order(data)

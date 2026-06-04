@@ -87,18 +87,7 @@ def handle_text(message: types.Message) -> None:
 
     bot.reply_to(message, reply)
 
-    # Сохраняем диалог в Google Sheets (если настроено)
- #   try:
- #       sheets.append_dialog_row(
- #           user_id=message.from_user.id,
- #           username=message.from_user.username,
- #           user_message=user_text,
- #           bot_reply=reply,
- #       )
- #   except Exception:
-#        logger.exception("Ошибка записи в Google Sheets")
-
-
+ 
 def main() -> None:
     """Запуск long polling."""
     logger.info("Бот запущен")
