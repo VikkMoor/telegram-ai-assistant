@@ -61,11 +61,21 @@ def handle_text(message: types.Message) -> None:
 
         reply = ai_logic.get_ai_reply(history)
 
-        if "[COMPLETE]" in reply:
-            logger.info("Заказ завершён, можно сохранять структуру")
-            
+        history.append({
+            "role": "assistant",
+            "content": reply,
+        })
 
-        history.append({"role": "assistant", "content": reply})
+        if "[COMPLETE]" in reply:
+            order = ai_logic.extract_order(history)
+
+            sheets.append_order(
+                order,
+                message.from_user.id,
+            )
+    
+
+            logger.info(f"ORDER SAVED: {order}")
 
         if len(history) > 20:
             history[:] = history[-20:]    
@@ -78,15 +88,15 @@ def handle_text(message: types.Message) -> None:
     bot.reply_to(message, reply)
 
     # Сохраняем диалог в Google Sheets (если настроено)
-    try:
-        sheets.append_dialog_row(
-            user_id=message.from_user.id,
-            username=message.from_user.username,
-            user_message=user_text,
-            bot_reply=reply,
-        )
-    except Exception:
-        logger.exception("Ошибка записи в Google Sheets")
+ #   try:
+ #       sheets.append_dialog_row(
+ #           user_id=message.from_user.id,
+ #           username=message.from_user.username,
+ #           user_message=user_text,
+ #           bot_reply=reply,
+ #       )
+ #   except Exception:
+#        logger.exception("Ошибка записи в Google Sheets")
 
 
 def main() -> None:

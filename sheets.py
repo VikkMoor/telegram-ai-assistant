@@ -52,3 +52,23 @@ def append_dialog_row(
         bot_reply,
     ]
     worksheet.append_row(row, value_input_option="USER_ENTERED")
+
+
+def append_order(order: dict, telegram_id: int) -> None:
+    if not config.GOOGLE_SHEET_ID:
+        return
+
+    worksheet = _get_worksheet()
+
+    row = [
+        datetime.now(timezone.utc).isoformat(),
+        order.get("name", ""),
+        order.get("contact", ""),
+        order.get("model", ""),
+        order.get("quantity", ""),
+        order.get("address", ""),
+        order.get("payment", ""),
+        telegram_id,
+    ]
+
+    worksheet.append_row(row, value_input_option="USER_ENTERED")
