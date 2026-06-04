@@ -1,28 +1,65 @@
-# Telegram AI Assistant
+# TechStore Telegram AI Assistant
 
-Telegram-бот на Python 3.12 с ответами через OpenAI и опциональным логированием диалогов в Google Sheets.
+A Telegram bot that acts as an AI sales consultant for a monitor shop. It helps users choose a product from a fixed catalog, guides them through checkout, and saves confirmed orders to Google Sheets.
 
-## Структура проекта
+Built with **Python 3.12**, **pyTelegramBotAPI** (`telebot`), **OpenAI API**, **gspread**, and **python-dotenv**.
+
+---
+
+## Features
+
+### AI assistant
+- Conversational consultant powered by OpenAI Chat Completions
+- Per-user chat history for multi-turn dialogue
+- Built-in product catalog and system prompt that define consultation and checkout behavior
+- Recommendations limited to in-catalog items only
+
+### Order system
+- Structured flow: needs → product choice → customer details → confirmation
+- Order is finalized when the model marks the dialog with `[COMPLETE]`
+- Order fields are extracted from the conversation via a separate AI call (`extract_order`)
+- Saved fields: name, contact, model, quantity, address, payment, Telegram user ID
+
+### Google Sheets integration
+- Confirmed orders are appended to a spreadsheet via a Google service account
+- Optional: if `GOOGLE_SHEET_ID` is not set, the bot still runs but skips sheet writes
+
+---
+
+## Project structure
 
 ```
 telegram_ai_assistant/
-├── bot.py              # Telegram-бот (handlers, polling)
-├── ai_logic.py         # Запросы к OpenAI API
-├── sheets.py           # Запись диалогов в Google Sheets
-├── config.py           # Загрузка настроек из .env
+├── bot.py           # Telegram handlers, session history, order trigger
+├── ai_logic.py      # OpenAI prompts, replies, order extraction
+├── sheets.py        # Google Sheets client (order logging)
+├── config.py        # Environment variables and validation
 ├── requirements.txt
-├── .env.example
+├── .gitignore
 └── README.md
 ```
 
-## Требования
+| Module | Responsibility |
+|--------|----------------|
+| `bot.py` | `/start`, text messages, history management, order save on `[COMPLETE]` |
+| `ai_logic.py` | Catalog, system prompt, `get_ai_reply()`, `extract_order()` |
+| `sheets.py` | `append_order()` — writes one row per confirmed order |
+| `config.py` | Loads `.env`, exposes settings, validates required keys |
+
+---
+
+## Requirements
 
 - Python 3.12
-- Токен бота ([@BotFather](https://t.me/BotFather))
-- API-ключ [OpenAI](https://platform.openai.com/)
-- (Опционально) Google Cloud service account и таблица для gspread
+- [Telegram Bot Token](https://t.me/BotFather)
+- [OpenAI API key](https://platform.openai.com/)
+- (Optional) Google Cloud service account with Sheets API access
 
-## Установка
+---
+
+## Setup
+
+### 1. Clone and install dependencies
 
 ```bash
 python -m venv .venv
@@ -34,40 +71,84 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
-cp .env.example .env
 ```
 
-Заполните `.env` своими значениями.
+### 2. Configure environment variables
 
-### Google Sheets (опционально)
+Create a `.env` file in the project root:
 
-1. Создайте проект в [Google Cloud Console](https://console.cloud.google.com/).
-2. Включите Google Sheets API и Google Drive API.
-3. Создайте сервисный аккаунт и скачайте JSON-ключ → сохраните как `credentials.json`.
-4. Откройте таблицу и выдайте сервисному аккаунту доступ «Редактор».
-5. В первой строке листа задайте заголовки:  
-   `timestamp | user_id | username | user_message | bot_reply`
-6. Укажите `GOOGLE_SHEET_ID` и `GOOGLE_SHEET_WORKSHEET` в `.env`.
+```env
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
 
-Если `GOOGLE_SHEET_ID` пустой, бот работает без записи в таблицу.
+GOOGLE_CREDENTIALS_PATH=credentials.json
+GOOGLE_SHEET_ID=your_spreadsheet_id
+GOOGLE_SHEET_WORKSHEET=Sheet1
+```
 
-## Запуск
+`TELEGRAM_BOT_TOKEN` and `OPENAI_API_KEY` are required. Google Sheets variables are optional.
+
+### 3. Google Sheets (optional)
+
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
+2. Enable **Google Sheets API** and **Google Drive API**.
+3. Create a service account and download the JSON key as `credentials.json`.
+4. Share the target spreadsheet with the service account email (Editor access).
+5. Add a header row on the worksheet:
+
+   `timestamp | name | contact | model | quantity | address | payment | telegram_id`
+
+6. Set `GOOGLE_SHEET_ID` (from the spreadsheet URL) and `GOOGLE_SHEET_WORKSHEET` in `.env`.
+
+Do not commit `.env` or `credentials.json` to version control.
+
+### 4. Run the bot
 
 ```bash
 python bot.py
 ```
 
-## Переменные окружения
+Send `/start` in Telegram to begin a new consultation session.
 
-| Переменная | Описание |
-|------------|----------|
-| `TELEGRAM_BOT_TOKEN` | Токен Telegram-бота |
-| `OPENAI_API_KEY` | Ключ OpenAI API |
-| `OPENAI_MODEL` | Модель (по умолчанию `gpt-4o-mini`) |
-| `GOOGLE_CREDENTIALS_PATH` | Путь к JSON сервисного аккаунта |
-| `GOOGLE_SHEET_ID` | ID Google-таблицы |
-| `GOOGLE_SHEET_WORKSHEET` | Имя листа |
+---
 
-## Лицензия
+## Environment variables
 
-MIT (при необходимости укажите свою).
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Yes | Bot token from BotFather |
+| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `OPENAI_MODEL` | No | Model name (default: `gpt-4o-mini`) |
+| `GOOGLE_CREDENTIALS_PATH` | No* | Path to service account JSON (default: `credentials.json`) |
+| `GOOGLE_SHEET_ID` | No* | Spreadsheet ID for order logging |
+| `GOOGLE_SHEET_WORKSHEET` | No* | Worksheet name (default: `Sheet1`) |
+
+\*Required only if you want orders saved to Google Sheets.
+
+---
+
+## How it works
+
+1. User sends `/start` — conversation history is reset and the bot asks about use case (gaming, work, design, etc.).
+2. User messages are appended to session history and sent to OpenAI with the TechStore system prompt.
+3. The assistant collects requirements, suggests monitors from the catalog, and gathers delivery/payment details.
+4. After user confirmation, the model responds with `[COMPLETE]` on the last line.
+5. `extract_order()` parses the dialog into structured JSON; `append_order()` writes a row to Google Sheets.
+
+---
+
+## Dependencies
+
+See `requirements.txt`:
+
+- `pyTelegramBotAPI` — Telegram Bot API
+- `openai` — OpenAI client
+- `gspread`, `google-auth` — Google Sheets
+- `python-dotenv` — `.env` loading
+
+---
+
+## Author note
+
+This project was developed as an academic demonstration of integrating conversational AI, a Telegram interface, and external data storage (Google Sheets) in a single Python application.
