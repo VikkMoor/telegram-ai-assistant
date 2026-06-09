@@ -18,11 +18,40 @@ Built with **Python 3.12**, **pyTelegramBotAPI** (`telebot`), **OpenAI API**, **
 - Structured flow: needs → product choice → customer details → confirmation
 - Order is finalized when the model marks the dialog with `[COMPLETE]`
 - Order fields are extracted from the conversation via a separate AI call (`extract_order`)
-- Saved fields: name, contact, model, quantity, address, payment, Telegram user ID
-
+- Saved fields: name, contact, model, quantity, address, payment, Telegram user ID, source
+  
 ### Google Sheets integration
 - Confirmed orders are appended to a spreadsheet via a Google service account
 - Optional: if `GOOGLE_SHEET_ID` is not set, the bot still runs but skips sheet writes
+
+---
+
+## Related Projects
+
+This Telegram assistant is part of a multi-channel AI sales system.
+
+The project shares the same Google Sheets database with the web version of the assistant.
+
+```text
+Telegram AI Assistant ──┐
+                        │
+                        ▼
+                  Google Sheets
+                        ▲
+                        │
+Flask Web Assistant ────┘
+```
+
+The `source` column is used to identify where an order originated.
+
+| Source   | Description           |
+| -------- | --------------------- |
+| telegram | Telegram AI Assistant |
+| website  | Flask Web Application |
+
+Related repository:
+
+* [AI Monitor Sales Assistant (Web)](https://github.com/VikkMoor/ai_chat_website)
 
 ---
 
@@ -97,7 +126,7 @@ GOOGLE_SHEET_WORKSHEET=Sheet1
 4. Share the target spreadsheet with the service account email (Editor access).
 5. Add a header row on the worksheet:
 
-   `timestamp | name | contact | model | quantity | address | payment | telegram_id`
+   `created_at | name | contact | model | quantity | address | payment | telegram_id | source`
 
 6. Set `GOOGLE_SHEET_ID` (from the spreadsheet URL) and `GOOGLE_SHEET_WORKSHEET` in `.env`.
 
